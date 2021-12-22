@@ -17,7 +17,6 @@ Load the data
 
 ```{r}
 x=read.csv("activity.csv", header = TRUE, sep = ",")
-x
 ```
 Convert date variable from factor to date, and remove NAs
 
