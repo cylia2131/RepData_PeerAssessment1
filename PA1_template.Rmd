@@ -8,18 +8,190 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r}
+library(knitr)
+library(ggplot2)
+library(dplyr)
+```
+Load the data
 
+```{r}
+x=read.csv("activity.csv", header = TRUE, sep = ",")
+x
+```
+Convert date variable from factor to date, and remove NAs
+
+```{r}
+data <- na.omit(x)
+data$date <- as.Date (data$date) 
+
+```
+
+Group data by date, and summarize the sum of steps
+
+```{r}
+stepsperday <- data %>% 
+    group_by(date) %>% 
+    summarize(TotalSteps=sum(steps))
+
+```
+
+Show histogram of steps per day
+
+```{r}
+
+hist(stepsperday$TotalSteps, 
+     xlab="Total number of steps taken per day", 
+     ylab="Count", 
+     main="Histogram of total number of steps taken per day",
+     col="#FD6C9E")
+
+```
 
 ## What is mean total number of steps taken per day?
+
+```{r}
+meansteps <- mean(stepsperday$TotalSteps)
+mediansteps <- median(stepsperday$TotalSteps)
+
+```
+ The mean total number of steps taken per day is 10766.19, and the median is 10765
+
 
 
 
 ## What is the average daily activity pattern?
 
+Group data by 5 minute interval and summarize the average number of steps in that interval
 
+```{r}
+
+fiveaverage <- data %>%
+    group_by(interval) %>%
+    summarize(AverageSteps=mean(steps))
+
+
+```
+Make an average activity plot
+
+
+```{r}
+plot(fiveaverage$interval, fiveaverage$AverageSteps, 
+     type="l",
+     xlab="Interval",
+     ylab="Average steps taken",
+     main="Average steps taken during 5 minute interval")
+```
+
+```{r}
+maxstepinterval <- fiveaverage$interval[which.max(fiveaverage$AverageSteps)]
+
+```
+
+The highest average step count happened during interval 835
+ 
 
 ## Imputing missing values
 
+Calculate number of missing values
+
+
+```{r}
+missing <- sum(is.na(x$steps))
+```
+There are 2304 NAs found in the raw data set.
+ 
+Create a filled in dataset by assigning the average value for that time interval if an NA is found.
+
+
+```{r}
+filldata <- x
+for (i in 1:nrow(filldata)) {
+    if (is.na(filldata$steps[i])) {
+        ## Find the index value for when the interval matches the average
+        ndx <- which(filldata$interval[i] == fiveaverage$interval)
+        ## Assign the value to replace the NA
+        filldata$steps[i] <- fiveaverage[ndx,]$AverageSteps
+    }
+}
+
+```
+
+Make sure the date variable is still a date
+
+```{r}
+filldata$date <- as.Date(filldata$date)
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+ Group data by date, and summarize the sum of steps
+ 
+```{r}
+fillstepsperday <- filldata %>% 
+    group_by(date) %>% 
+    summarize(TotalSteps=sum(steps))
+
+```
+
+Show histogram of steps per day
+
+
+```{r}
+hist(fillstepsperday$TotalSteps, 
+     xlab="Total number of steps taken per day", 
+     ylab="Count", 
+     main="Histogram of total number of steps taken per day",
+     col="#FD6C9E")
+
+```
+
+```{r}
+
+fillmeansteps <- mean(fillstepsperday$TotalSteps)
+fillmediansteps <- median(fillstepsperday$TotalSteps)
+
+```
+
+The mean total number of steps per day is 10766.19 and the median is 10766.19. The mean is unchanged, but the median moved slightly and is now equal to the mean.
+Inputting missing data based on an average leaves the average daily total number of steps the same while changing the median.
+
+Make weekday variable
+
+```{r}
+filldata$day <- weekdays(filldata$date)
+```
+
+Define all days as weekdays
+```{r}
+filldata$daytype <- "weekday"
+```
+
+Fix days that are saturday or sunday to be weekends
+```{r}
+filldata$daytype[filldata$day %in% c("samedi", "dimanche")] <- "weekend"
+```
+
+Group data by 5 minute interval and summarize the average number of steps in that interval
+
+```{r}
+
+dayaverage <- filldata %>%
+    group_by( daytype, interval) %>%
+    summarize(AverageSteps=mean(steps))
+
+```
+
+Use qplot because facets easily divides the graph into two better than the base graphics system.
+
+```{r}
+qplot(interval, AverageSteps, data=dayaverage,
+      type="l",
+      geom="line",
+      xlab="Interval",
+      ylab="Number of Steps (Average)",
+      main="Average steps taken Weekends vs. Weekdays",
+      facets =daytype ~ .)
+
+```
